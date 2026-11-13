@@ -1,6 +1,6 @@
 {
   "name": "unjobbed",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Craw jobs plugin: public-page scrape plus an opt-in jobs pipeline across public APIs, ATS feeds, and optional boards.",
   "type": "module",
   "license": "MIT",
@@ -10,7 +10,9 @@
     "url": "https://github.com/LuxDevNet/unjobbed.git"
   },
   "craw": {
-    "plugins": ["./src/craw-plugin.ts"]
+    "plugins": [
+      "./src/craw-plugin.ts"
+    ]
   },
   "exports": {
     ".": "./src/craw-plugin.ts",
