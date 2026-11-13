@@ -1,13 +1,20 @@
 {
   "name": "unjobbed",
-  "version": "1.1.0",
-  "description": "Typed, multi-board job search & intelligence pipeline. Scrapes LinkedIn, Indeed, Glassdoor, Wellfound, Dice, and direct ATS boards (Greenhouse, Lever, Ashby, Workday).",
+  "version": "1.2.0",
+  "description": "Craw jobs plugin: public-page scrape plus an opt-in jobs pipeline across public APIs, ATS feeds, and optional boards.",
   "type": "module",
   "license": "MIT",
   "author": "LuxDevNet",
   "repository": {
     "type": "git",
-    "url": "https://github.com/LuxDevNet/jobhound.git"
+    "url": "https://github.com/LuxDevNet/unjobbed.git"
+  },
+  "craw": {
+    "plugins": ["./src/craw-plugin.ts"]
+  },
+  "exports": {
+    ".": "./src/craw-plugin.ts",
+    "./craw-plugin": "./src/craw-plugin.ts"
   },
   "keywords": [
     "job-scraper",
@@ -18,24 +25,23 @@
     "greenhouse",
     "lever",
     "ashby",
-    "indeed",
-    "linkedin",
-    "ats"
+    "ats",
+    "craw"
   ],
   "engines": {
     "node": ">=20.12"
   },
   "bin": {
-    "unjobbed": "./src/cli.ts"
+    "unjobbed": "bin/unjobbed.js"
   },
   "publishConfig": {
     "access": "public"
   },
   "files": [
+    "bin",
     "src",
     "searches",
-    "README.md",
-    ".actor"
+    "README.md"
   ],
   "scripts": {
     "jobs": "tsx src/cli.ts",
@@ -48,17 +54,38 @@
     "check": "npm run typecheck && npm test"
   },
   "dependencies": {
+    "@agnamo/craw": "file:../../Dev/004 Tier Four Projects/craw",
+    "cheerio": "^1.2.0",
+    "p-limit": "^7.3.3",
+    "tsx": "^4.23.15",
+    "zod": "^4.6.5"
+  },
+  "peerDependencies": {
     "apify": "^3.7.2",
     "apify-client": "^2.25.0",
-    "cheerio": "^1.2.0",
     "crawlee": "^3.18.1",
-    "p-limit": "^7.3.3",
-    "playwright": "^1.63.0",
-    "zod": "^4.6.5"
+    "playwright": "^1.63.0"
+  },
+  "peerDependenciesMeta": {
+    "apify": {
+      "optional": true
+    },
+    "apify-client": {
+      "optional": true
+    },
+    "crawlee": {
+      "optional": true
+    },
+    "playwright": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
-    "tsx": "^4.23.15",
+    "apify": "^3.7.2",
+    "apify-client": "^2.25.0",
+    "crawlee": "^3.18.1",
+    "playwright": "^1.63.0",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"
   }

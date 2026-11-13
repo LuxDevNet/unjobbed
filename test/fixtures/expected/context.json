@@ -1,0 +1,24 @@
+{
+  "summary": {
+    "totalOutput": 1,
+    "perSource": {
+      "template": 1
+    },
+    "errors": {},
+    "seenTruncated": false,
+    "finishedAt": "2026-10-30T20:00:00.000Z"
+  },
+  "records": [
+    {
+      "schemaVersion": 1,
+      "id": "0f115db062b7c0dd",
+      "url": "https://example.com/",
+      "title": "Example Domain",
+      "text": "Example Domain",
+      "kind": "WebPage",
+      "extractedBy": "excerpt",
+      "terms": "public-page",
+      "retrievedAt": "2026-10-30T20:00:00.000Z"
+    }
+  ]
+}

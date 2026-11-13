@@ -6,7 +6,11 @@ import { SOURCE_IDS, type Job } from "./model.ts";
 import { loadPreset, listAllPresets, savePreset } from "./presets.ts";
 import { hash, normCity, normCompany, normTitle } from "./lib/text.ts";
 import { launchTui, loadRecentJobs } from "./tui.ts";
-import { evaluateJobMatch, rankJobsByProfile, autofillApplication, analyzeGhostJob, filterGhostJobs, type CandidateProfile } from "./pro/index.ts";
+import { buildScrapeInput } from "./cli/scrape-input.ts";
+import { applyCliFlags } from "./cli/flags.ts";
+import { doctorExitCode, formatDoctorOutput, runDoctor } from "./cli/doctor.ts";
+import { WEBHOOK_HELP } from "./output/copy.ts";
+import type { CandidateProfile } from "./pro/ai-matcher.ts";
 
 function parseArgs(args: string[]) {
   const flags: Record<string, any> = {};
@@ -52,6 +56,9 @@ function printHelp() {
 Unjobbed CLI — Multi-board job scraper, pipeline & presets engine
 
 USAGE:
+  unjobbed scrape <url...>              Scrape ordinary public pages through the Craw host
+  unjobbed doctor                       Check cold-start prerequisites without printing secrets
+  unjobbed plugins [--json]             List Craw host and discovered plugin manifests
   unjobbed run [preset] [options]       Run scraper using CLI flags or a named preset
   unjobbed presets                      List all available search presets
   unjobbed preset save <name> [options] Save search parameters as a named preset in searches/
@@ -74,10 +81,11 @@ SEARCH OPTIONS:
   --exclude-companies <list>   Comma-separated company names to exclude
 
 SCRAPLING & STEALTH OPTIONS:
-  --scrapling                  Enable Scrapling anti-bot evasion & fingerprint shielding
+  --scrapling                  Record Scrapling preference for compatible inputs
   --human                      Enable human-like mouse movements and scroll simulation
   --proxy <url>                Custom HTTP/SOCKS5 proxy URL
   --residential                Use residential proxy group on Apify
+  --dry-run                    Prepare run input without executing side effects that honor dry-run
 
 CUSTOM BASE URLS & PROXY ROUTING:
   --base-url <source=url>      Override base URL or route through proxy scrapers
@@ -87,7 +95,7 @@ CUSTOM BASE URLS & PROXY ROUTING:
 OUTPUT ENDPOINTS & FORMATTING:
   -o, --output <path>          Save results to custom file (e.g. ./jobs.json or ./jobs.csv)
   -f, --format <json|jsonl|csv> Output format (default: json)
-  --webhook <url>              Stream/POST final results payload to an external HTTP webhook
+  --webhook <url>              ${WEBHOOK_HELP}
 
 PERFORMANCE & DISTRIBUTED SHARDING:
   --concurrency <num>          HTTP concurrency (default: 8)
@@ -98,17 +106,23 @@ PERFORMANCE & DISTRIBUTED SHARDING:
   --debug                      Enable verbose debug logging
 
 EXAMPLES:
+  # Scrape a public page without loading the jobs pipeline:
+  node bin/unjobbed.js scrape https://example.com
+
+  # Check local cold-start readiness:
+  node bin/unjobbed.js doctor
+
   # Run a named preset:
-  npx tsx src/cli.ts run san-diego-120k
+  node bin/unjobbed.js run san-diego-120k
 
-  # Run with Scrapling mode and export to CSV:
-  npx tsx src/cli.ts run -k "Machine Learning" --remote --scrapling -o ./ml_jobs.csv -f csv
+  # Run with custom output to CSV:
+  node bin/unjobbed.js run -k "Machine Learning" --remote --scrapling -o ./ml_jobs.csv -f csv
 
-  # Run with Webhook output streaming:
-  npx tsx src/cli.ts run -k "React" --webhook https://api.mycompany.com/webhooks/jobs
+  # Run with end-of-run webhook delivery:
+  node bin/unjobbed.js run -k "React" --webhook https://api.mycompany.com/webhooks/jobs
 
   # Run Worker 1 of 5 on a distributed VM cluster:
-  npx tsx src/cli.ts run san-diego-120k --shards 5 --shard 0
+  node bin/unjobbed.js run san-diego-120k --shards 5 --shard 0
 `);
 }
 
@@ -120,10 +134,10 @@ async function runScraper(flags: Record<string, any>, presetName?: string) {
   if (targetPreset) {
     const loaded = await loadPreset(targetPreset);
     if (loaded) {
-      console.log(`[Jobhound] Loaded preset: "${loaded.name}" — ${loaded.description}`);
+      console.log(`[unjobbed] Loaded preset: "${loaded.name}" — ${loaded.description}`);
       inputConfig = { ...loaded.config };
     } else {
-      console.warn(`[Jobhound] Warning: Preset "${targetPreset}" not found. Running with flags.`);
+      console.warn(`[unjobbed] Warning: Preset "${targetPreset}" not found. Running with flags.`);
     }
   }
 
@@ -183,8 +197,8 @@ async function runScraper(flags: Record<string, any>, presetName?: string) {
     inputConfig.workModes = String(flags["work-modes"]).split(",").map((s) => s.trim());
   }
 
-  // Scrapling & Stealth
-  if (flags.scrapling || flags.stealth) inputConfig.scrapling = true;
+  // Stealth
+  if (flags.stealth) inputConfig.scrapling = true;
   if (flags.human) inputConfig.humanEmulation = true;
 
   // Base URLs overrides: e.g. --base-url indeed=https://ca.indeed.com
@@ -209,6 +223,7 @@ async function runScraper(flags: Record<string, any>, presetName?: string) {
   if (flags["browser-concurrency"]) inputConfig.browserMaxConcurrency = Number(flags["browser-concurrency"]);
   if (flags.retries) inputConfig.maxRequestRetries = Number(flags.retries);
   if (flags.debug) inputConfig.debug = true;
+  inputConfig = applyCliFlags(inputConfig, flags);
 
   // Ensure default storage directory exists
   const defaultDir = path.resolve(process.cwd(), "storage/key_value_stores/default");
@@ -219,22 +234,76 @@ async function runScraper(flags: Record<string, any>, presetName?: string) {
     "utf-8"
   );
 
-  console.log(`[Jobhound] Configuration prepared. Starting pipeline...`);
+  console.log(`[unjobbed] Configuration prepared. Starting pipeline...`);
   if (inputConfig.shardTotal && Number(inputConfig.shardTotal) > 1) {
-    console.log(`[Jobhound] Distributed Mode: Shard ${(Number(inputConfig.shardIndex) || 0) + 1} of ${inputConfig.shardTotal}`);
-  }
-  if (inputConfig.scrapling) {
-    console.log(`[Jobhound] Scrapling Mode: Active (Anti-bot evasion & fingerprint shielding enabled)`);
+    console.log(`[unjobbed] Distributed Mode: Shard ${(Number(inputConfig.shardIndex) || 0) + 1} of ${inputConfig.shardTotal}`);
   }
   if (inputConfig.webhookUrl) {
-    console.log(`[Jobhound] Output Webhook: ${inputConfig.webhookUrl}`);
+    console.log(`[unjobbed] Output Webhook: ${inputConfig.webhookUrl}`);
   }
   if (inputConfig.outputPath) {
-    console.log(`[Jobhound] Output File: ${inputConfig.outputPath} (${inputConfig.outputFormat || "json"})`);
+    console.log(`[unjobbed] Output File: ${inputConfig.outputPath} (${inputConfig.outputFormat || "json"})`);
   }
 
-  // Dynamically import and run main
-  await import("./main.ts");
+  try {
+    const { runJobs } = await import("./pipeline.ts");
+    const { createLocalRuntime } = await import("./host/runtime.ts");
+    await runJobs(inputConfig, await createLocalRuntime());
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/Cannot find package ['"]?(apify|crawlee|playwright)/i.test(message)) {
+      console.error(
+        "Jobs pipeline needs optional peers: npm i apify crawlee playwright. Scrape stays: node bin/unjobbed.js scrape <url>",
+      );
+      process.exitCode = 1;
+      return;
+    }
+    throw error;
+  }
+}
+
+function validateScrapeInput(input: ReturnType<typeof buildScrapeInput>): string | undefined {
+  if (input.startUrls.length === 0) {
+    return "scrape requires at least one URL";
+  }
+  for (const url of input.startUrls) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        return `unsupported URL protocol: ${url}`;
+      }
+    } catch {
+      return `invalid URL: ${url}`;
+    }
+  }
+  if (!Number.isInteger(input.maxPages) || input.maxPages < 1) {
+    return "maxPages must be a positive integer";
+  }
+  if (!Number.isInteger(input.maxRecords) || input.maxRecords < 1) {
+    return "maxRecords must be a positive integer";
+  }
+  return undefined;
+}
+
+async function handleScrapeCommand(urls: string[], flags: Record<string, any>) {
+  const input = buildScrapeInput(urls, flags);
+  const validationError = validateScrapeInput(input);
+  if (validationError) {
+    console.error(validationError);
+    process.exitCode = 2;
+    return;
+  }
+
+  const { dispatchScrape } = await import("@agnamo/craw");
+  const result = await dispatchScrape(input.startUrls, flags, "craw");
+  console.log(result.text.replace(/^craw /, "unjobbed "));
+  process.exitCode = result.exitCode;
+}
+
+async function handleDoctorCommand() {
+  const lines = await runDoctor();
+  process.stdout.write(formatDoctorOutput(lines));
+  process.exitCode = doctorExitCode(lines);
 }
 
 async function handlePresetsCommand(subcommand?: string, name?: string, flags?: Record<string, any>) {
@@ -249,18 +318,18 @@ async function handlePresetsCommand(subcommand?: string, name?: string, flags?: 
     if (flags?.boards) config.companyBoards = String(flags.boards).split(",").map((s) => s.trim());
 
     const savedPath = await savePreset(name, config, String(flags?.description || ""));
-    console.log(`[Jobhound] Preset saved to: ${savedPath}`);
+    console.log(`[unjobbed] Preset saved to: ${savedPath}`);
     return;
   }
 
   const all = await listAllPresets();
-  console.log("\nAvailable Jobhound Presets:\n");
+  console.log("\nAvailable unjobbed Presets:\n");
   console.log("NAME".padEnd(24) + "DESCRIPTION");
   console.log("-".repeat(70));
   for (const p of all) {
     console.log(p.name.padEnd(24) + p.description);
   }
-  console.log("\nRun any preset with: npx tsx src/cli.ts run <preset-name>\n");
+  console.log("\nRun any preset with: node bin/unjobbed.js run <preset-name>\n");
 }
 
 function listSources() {
@@ -338,6 +407,7 @@ async function handleMatchCommand(profilePath?: string, flags: Record<string, an
   const raw = await fs.readFile(path.resolve(process.cwd(), file), "utf-8");
   const profile = JSON.parse(raw) as CandidateProfile;
   const jobs = await loadRecentJobs();
+  const { rankJobsByProfile } = await import("./pro/ai-matcher.ts");
 
   console.log(`\nEvaluating ${jobs.length} jobs against profile: ${profile.name} (${profile.title || "Candidate"})...\n`);
   const ranked = rankJobsByProfile(jobs, profile, Number(flags["min-fit"] || 0));
@@ -375,6 +445,7 @@ async function handleApplyCommand(jobUrlOrId?: string, flags: Record<string, any
   }
 
   console.log(`[Pro Auto-Applier] Initiating 1-Click ATS autofill on ${jobUrlOrId}...`);
+  const { autofillApplication } = await import("./pro/auto-applier.ts");
   const res = await autofillApplication(jobUrlOrId, profile, {
     dryRun: !flags.submit,
     resumePath: typeof flags.resume === "string" ? flags.resume : undefined,
@@ -385,6 +456,7 @@ async function handleApplyCommand(jobUrlOrId?: string, flags: Record<string, any
 
 async function handleGhostCommand(flags: Record<string, any> = {}) {
   const jobs = await loadRecentJobs();
+  const { analyzeGhostJob } = await import("./pro/ghost-detector.ts");
   console.log(`\nRunning Ghost Job Radar across ${jobs.length} cached jobs...\n`);
 
   console.log("GHOST PROB".padEnd(14) + "TITLE".padEnd(36) + "COMPANY".padEnd(20) + "SIGNALS");
@@ -408,6 +480,19 @@ async function main() {
   const command = positional[0]?.toLowerCase() || "help";
 
   switch (command) {
+    case "scrape":
+      await handleScrapeCommand(positional.slice(1), flags);
+      break;
+    case "doctor":
+      await handleDoctorCommand();
+      break;
+    case "plugins": {
+      const { discoverPlugins } = await import("@agnamo/craw");
+      const plugins = await discoverPlugins();
+      if (flags.json) process.stdout.write(`${JSON.stringify({ plugins }, null, 2)}\n`);
+      else for (const item of plugins) console.log(`${item.id}\t${item.kind}\t${item.npmName}`);
+      break;
+    }
     case "run":
       await runScraper(flags, positional[1]);
       break;

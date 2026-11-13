@@ -6,6 +6,7 @@ import {
   WORK_MODES,
   type SearchQuery,
 } from "./model.ts";
+import { COLD_SOURCE_IDS } from "./registry.ts";
 
 const PostedWithin = z
   .union([z.literal(""), z.coerce.number()])
@@ -13,6 +14,10 @@ const PostedWithin = z
 
 /** Mirrors .actor/input_schema.json. Zod gives us defaults + a single typed object. */
 export const InputSchema = z.object({
+  mode: z.enum(["run", "scrape", "doctor"]).default("run"),
+  dryRun: z.boolean().default(false),
+  residentialOptIn: z.boolean().default(false),
+
   // Core Search Filters
   keywords: z.string().default(""),
   location: z.string().default(""),
@@ -37,21 +42,7 @@ export const InputSchema = z.object({
   descriptionExclude: z.array(z.string()).default([]),
 
   // Source & Board Controls
-  sources: z
-    .array(z.enum(SOURCE_IDS))
-    .default([
-      "linkedin",
-      "indeed",
-      "glassdoor",
-      "wellfound",
-      "upwork",
-      "ziprecruiter",
-      "dice",
-      "simplyhired",
-      "builtin",
-      "remoteok",
-      "himalayas",
-    ]),
+  sources: z.array(z.enum(SOURCE_IDS)).default([...COLD_SOURCE_IDS]),
   maxResultsPerSource: z.coerce.number().int().min(1).max(5000).default(100),
 
   /** Paste any job-board search URL. The board is auto-detected and its generated search is replaced. */

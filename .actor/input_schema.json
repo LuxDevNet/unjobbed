@@ -3,6 +3,30 @@
   "type": "object",
   "schemaVersion": 1,
   "properties": {
+    "mode": {
+      "title": "Mode",
+      "type": "string",
+      "editor": "select",
+      "enum": [
+        "run",
+        "scrape",
+        "doctor"
+      ],
+      "default": "run",
+      "description": "Execution mode for the command pipeline."
+    },
+    "dryRun": {
+      "title": "Dry run",
+      "type": "boolean",
+      "default": false,
+      "description": "Parse and plan without submitting or mutating downstream state."
+    },
+    "residentialOptIn": {
+      "title": "Residential proxy opt-in",
+      "type": "boolean",
+      "default": false,
+      "description": "Allow protected sources that require residential routing when explicitly requested."
+    },
     "keywords": {
       "title": "Keywords",
       "type": "string",
@@ -213,17 +237,19 @@
         ]
       },
       "default": [
-        "linkedin",
-        "indeed",
-        "glassdoor",
-        "wellfound",
-        "upwork",
-        "ziprecruiter",
-        "dice",
-        "simplyhired",
-        "builtin",
         "remoteok",
-        "himalayas"
+        "remotive",
+        "himalayas",
+        "weworkremotely",
+        "hackernews",
+        "greenhouse",
+        "lever",
+        "ashby",
+        "smartrecruiters",
+        "jobvite",
+        "workable",
+        "breezy",
+        "recruitee"
       ],
       "description": "List of job boards and ATS sources to query."
     },

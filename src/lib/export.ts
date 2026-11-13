@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import type { Job } from "../model.ts";
+import { validateWebhookUrl } from "./webhook.ts";
 
 export function jobsToCsv(jobs: Job[]): string {
   const headers = [
@@ -84,8 +85,13 @@ export async function sendWebhook(
   webhookUrl: string,
   payload: { summary: Record<string, unknown>; jobs: Job[] },
 ): Promise<{ success: boolean; status?: number; error?: string }> {
+  const check = validateWebhookUrl(webhookUrl);
+  if (!check.ok) {
+    return { success: false, error: check.error };
+  }
+
   try {
-    const res = await fetch(webhookUrl, {
+    const res = await fetch(check.url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

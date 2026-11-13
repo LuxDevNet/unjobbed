@@ -1,0 +1,31 @@
+services:
+  core:
+    profiles:
+      - core
+    build:
+      context: .
+      dockerfile: .actor/Dockerfile
+    environment:
+      - CRAWLEE_STORAGE_DIR=/storage
+    volumes:
+      - ./storage:/storage
+
+  searxng:
+    profiles:
+      - tools
+    image: docker.io/searxng/searxng:latest
+    ports:
+      - "127.0.0.1:8888:8080"
+    # SearXNG JSON format must be enabled: search.formats includes json.
+    volumes:
+      - searxng-data:/etc/searxng
+
+  firecrawl:
+    profiles:
+      - tools
+    image: ghcr.io/mendableai/firecrawl:latest
+    ports:
+      - "127.0.0.1:3002:3002"
+
+volumes:
+  searxng-data:

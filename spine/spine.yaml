@@ -1,0 +1,63 @@
+schemaVersion: 1
+id: unjobbed
+label: unjobbed spine
+activeComposition: default
+catalogs:
+  features: "#/features"
+  functions: "#/functions"
+  objects: "#/objects"
+  connections: "#/connections"
+policies:
+  source: README and the docs cited in OBJECTIVE.md
+compositions:
+  default: this package
+versions:
+  spine: 1.0.0
+platforms:
+  - Node >=20.12
+features:
+  - unjobbed scrape through the local Craw host (in-progress). Dirty tree, not the published tarball.
+  - unjobbed doctor (in-progress). Dirty tree, not the published tarball.
+  - unjobbed run on the cold group of 13 public APIs and feeds (in-progress). Dirty tree, not the published tarball.
+  - Normalize, dedupe, and score
+  - Needs-route boards behind residentialOptIn (planned). Not the default.
+  - Optional private Apify Actor, not a Store listing
+functions:
+  - name: unjobbed scrape
+    status: in-progress
+    note: Dirty working tree. This is not the published 1.1.0 tarball.
+  - name: unjobbed doctor
+    status: in-progress
+    note: Dirty working tree. This is not the published 1.1.0 tarball.
+  - name: unjobbed run
+    status: in-progress
+    note: Dirty working tree. This is not the published 1.1.0 tarball.
+objects:
+  - stream.jsonl, CONTEXT.json, and CARD.json
+  - "Job row: id, title, company, location, salary, postedAt, url, score, seenOn, isNew"
+  - Cold-group source id
+  - Needs-route source id gated by residentialOptIn (planned)
+  - "Platforms: Node >=20.12"
+  - "docs/ludvig.json: strict Ludvig theme; color and font strings empty"
+connections:
+  - from: unjobbed scrape
+    to: "@agnamo/craw"
+    how: Local host. No Apify, Crawlee, or Playwright on that path.
+  - from: unjobbed run
+    to: 13 public boards
+    how: HTTP and RSS by default. Cold-group run is in-progress in this dirty tree, not the published tarball.
+  - from: needs-route boards
+    to: Playwright or guest APIs
+    how: Planned. Off until sources and residentialOptIn are both set. Not the default.
+  - from: webhookUrl
+    to: an HTTPS endpoint
+    how: RFC1918, link-local, loopback, and metadata hosts are rejected.
+  - from: package.json
+    to: "@agnamo/craw"
+    how: "file:../../Dev/004 Tier Four Projects/craw. Not installable off this machine. Do not publish this tree as 1.1.0."
+  - from: local bin
+    to: published 1.1.0 bin
+    how: Local bin is bin/unjobbed.js. The published tarball bin is src/cli.ts. This working tree is not that tarball.
+  - from: unjobbed
+    to: docs/ludvig.json
+    how: Strict theme file. No CSS in this repo defines colors, so the theme strings are empty.

@@ -1,0 +1,48 @@
+{
+  "theme": {
+    "base": {
+      "--background-mode": "",
+      "--background-one": "",
+      "--background-two": "",
+      "--gradient": {
+        "--gradient-one": "",
+        "--gradient-two": ""
+      },
+      "--pattern": {
+        "--pattern-style": "",
+        "--pattern-one": "",
+        "--pattern-two": ""
+      },
+      "--surface": "",
+      "--menu": ""
+    },
+    "styling": {
+      "--headers": "",
+      "--body": "",
+      "--function": "",
+      "--highlights": "",
+      "--menu": "",
+      "--density": "",
+      "--contrast": "",
+      "--intensity": "",
+      "--edges": "",
+      "--opacity": {
+        "--opacity-global": "",
+        "--opacity-background": "",
+        "--opacity-surface": "",
+        "--opacity-menus": "",
+        "--opacity-main": "",
+        "--opacity-headers": "",
+        "--opacity-body": "",
+        "--opacity-function": "",
+        "--opacity-highlights": ""
+      }
+    },
+    "typography": {
+      "--header-font": "",
+      "--body-font": "",
+      "--code-font": "",
+      "--alternative-font": ""
+    }
+  }
+}

@@ -1,0 +1,3 @@
+version,date,change
+1.2.0,2026-11-02,"Local pack drops .actor and moves off 1.1.0. @agnamo/craw stays a file: dependency until 0.1.0 is on npm. Do not publish in the same step as craw."
+1.1.0,,"Published tarball differs from this working tree. Local bin is bin/unjobbed.js; published bin is src/cli.ts. @agnamo/craw is file:../../Dev/004 Tier Four Projects/craw."

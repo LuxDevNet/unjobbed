@@ -1,0 +1,13 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Page records",
+  "description": "One dataset row per fetched page.",
+  "properties": {
+    "overview": {
+      "type": "string",
+      "title": "Pages",
+      "description": "Dataset view of page records.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?view=overview"
+    }
+  }
+}
